@@ -13,18 +13,10 @@ var db;
 var config = {      
     "USER"    : "",                  
     "PASS"    : "",       
-    "HOST"    : "ec2-54-69-158-93.us-west-2.compute.amazonaws.com",         
+    "HOST"    : "ec2-54-149-36-88.us-west-2.compute.amazonaws.com",         
     "PORT"    : "27017",        
     "DATABASE" : "iFashionDB"     
 };
-
-// define the details for the database we will be connecting to on that instance
-/*var dbPath  = "mongodb://"+config.USER + ":"+     
-    config.PASS + "@"+     
-    config.HOST + ":"+    
-    config.PORT + "/"+     
-    config.DATABASE; 
-*/
 
 var dbPath = "mongodb://"+config.HOST+":"+config.PORT+"/"+config.DATABASE;
 
@@ -33,52 +25,142 @@ console.log("Connecting to " + dbPath);
 mongoose.connect(dbPath);
 db=mongoose.connection;
 
-// create schema for our database
-var iFashionSchema = mongoose.Schema({
-  user_id: String,
-  style: String
+// create schema for purchased item
+var itemSchema = mongoose.Schema({
+    item: String,
+    type: String,
+    brand: String,
+    price: String,
+    date: String
 });
 
-// create database model
-var iFashionProfile = mongoose.model('FashionProfile', iFashionSchema);
+// create schema for User Fashion Profile
+var iFashionProfileSchema = mongoose.Schema({
+  user: {
+    id: String,
+    name: String,
+    profile: String,
+  },
+  style: String,
+  purchases: [itemSchema]
+});
+
+// create database model for fashion profile
+var iFashionProfile = mongoose.model('FashionProfile', iFashionProfileSchema);
+
+// create schema for Fashion Concierges
+var iFashionConciergeSchema = mongoose.Schema({
+  uuid: String,
+  name: String,
+  phone: String
+});
  
+// create database model for fashion concierge
+var iFashionConcierge = mongoose.model('FashionConcierge', iFashionConciergeSchema);
 
 // db error handler
 db.on('error', console.error.bind(console, 'Connection failed'));
 
 // db successful connection handler
 db.once('open', function(callback) { 
-    console.log("Connected to DB. Lookup profiles...");
+    console.log("Connected to iFashion database....");
 
-    // create default profile
-    var defaultProfile = new iFashionProfile({style: 'default style'});
+    // create default fashion profile
+    var Leo = new iFashionProfile({
+        user: {
+   		id: '1234',
+   		name: 'Leo',
+   		profile: 'Urban achiever'
+	},
+   	style: 'Classic with a bit of trendy accent',
+   	purchases: [
+      	{
+		item: 'Del Rey Chronograph Leather Watch - Tan',
+		type: 'Watch',
+		brand: 'Fossil',
+		price: '175',
+		date: 'December 27, 2014'
+      	},
+      	{
+        	item: 'Fuel Cell',
+		type: 'Lifestyle Sunglasses',
+		brand: 'Oakley',
+        	price: '160',
+        	date: 'January 10, 2015'
+      	}
+   	]
+    });
 
-    // show existing profiles
-    iFashionProfile.find( function(err, profiles){
-	if (err) return console.error(err);
-        if (profiles=="") {
-	   // insert default profile
-           var defaultProfile = new iFashionProfile({user_id: "123", style: 'default style'});
-	   defaultProfile.save(function (err, defaultProfile) {
-		if (err) return console.error(err);
-	   });
-	}
-    });  
+    var Jane = new iFashionConcierge({
+  	uuid:'39ed3f82-ab30-11e4-89d3-123b93f75cba',
+  	name:'Jane',
+  	phone:'+15033171751'
+    });
+
+   // check if Leo and Jane's profiles exist in the database
+   iFashionProfile.find({ 'user.name':'Leo' }, function(err, profile){
+   	if (err) return console.error(err);
+   	if (profile=="") {
+		// insert Leo's profile
+		console.log("Inserting Leo's profile to FashionProfile DB");
+		Leo.save(function (err, Leo) { 
+			if (err) return console.error(err);
+		});
+    	}
+   });
+
+   iFashionConcierge.find({ name:'Jane' }, function(err, profile){
+   	if (err) return console.error(err);
+   	if (profile=="") {
+        	// insert Jane's profile
+        	console.log("Inserting Jane's profile to FashionConsierge DB");
+        	Jane.save(function (err, Jane) {
+        		if (err) return console.error(err);
+        	});
+   	}
+   });
 });
-
 
 // set up the Express routes to handle incoming requests. 
 
 // first, respond to requests to our domain by extracting user profileg from the Db and sending it as the response
 app.get('/', function(req, res){ 
-    console.log("Received new request. Looking for user profile");  
-    iFashionProfile.findOne({'user_id':'123'}, function (err, profile) { 
-	if (err) return console.error(err);
-	console.log("user profile: " + profile);
-	if (profile)
-	    res.send(profile.style); 
-	else
-	    res.send("profile not found");
+    console.log("Received new request: " + req);
+    // TO DO: extract user id and concierge id from the request's body
+    var user_id = '1234';
+    var concierge_id = '39ed3f82-ab30-11e4-89d3-123b93f75cba';    
+    var response;
+
+    // Fetch user profile 
+    iFashionProfile.findOne({'user.id':user_id}, function (err, profile) { 
+	if (err)  {
+	  res.send(err);
+	  return console.error(err);
+	}
+	if (!profile){
+	  res.send("User profile not found");
+	  return console.log("User profile not found!");;
+	} 
+	
+	console.log("User profile found! " + profile);
+	response = "Sharing " + profile.user.name + " fashion profile"; 
+
+	// Fetch concierge profile
+    	iFashionConcierge.findOne({'uuid':concierge_id}, function (err, profile) {
+          if (err)  {
+            res.send(err);
+            return console.error(err);
+          }
+          if (!profile){
+            res.send("Concierge profile not found");
+            return console.log("Concierge profile not found!");;
+          }
+
+          console.log("Concierge profile found! " + profile);
+          response += " with fashion concierge " + profile.name;
+	  res.send(response);
+        });
+    
     }); 
 });
 
@@ -96,3 +178,4 @@ app.use(function(err, req, res, next){
 console.log('starting Express (NodeJS) Web server'); 
 app.listen(8080); 
 console.log('Webserverlistening on port 8080');
+
