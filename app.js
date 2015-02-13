@@ -122,13 +122,16 @@ db.once('open', function(callback) {
 });
 
 // set up the Express routes to handle incoming requests. 
+var bodyParser = require('body-parser');
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // first, respond to requests to our domain by extracting user profileg from the Db and sending it as the response
-app.get('/', function(req, res){ 
-    console.log("Received new request: " + req);
+app.post('/', function(req, res){     
+
+    console.log("Received new request. user_id = " + req.body.user_id + " consierge_id = " + req.body.concierge_id);
     // TO DO: extract user id and concierge id from the request's body
-    var user_id = '1234';
-    var concierge_id = '39ed3f82-ab30-11e4-89d3-123b93f75cba';    
+    var user_id = req.body.user_id;
+    var concierge_id = req.body.concierge_id;    
     var response;
 
     // Fetch user profile 
