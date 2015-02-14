@@ -13,7 +13,7 @@ var db;
 var config = {      
     "USER"    : "",                  
     "PASS"    : "",       
-    "HOST"    : "ec2-54-149-36-88.us-west-2.compute.amazonaws.com",         
+    "HOST"    : "ec2-54-69-199-235.us-west-2.compute.amazonaws.com",         
     "PORT"    : "27017",        
     "DATABASE" : "iFashionDB"     
 };
@@ -52,7 +52,7 @@ var iFashionProfile = mongoose.model('FashionProfile', iFashionProfileSchema);
 var iFashionConciergeSchema = mongoose.Schema({
   uuid: String,
   name: String,
-  phone: String
+  gcm_regid: String
 });
  
 // create database model for fashion concierge
@@ -94,7 +94,7 @@ db.once('open', function(callback) {
     var Jane = new iFashionConcierge({
   	uuid:'39ed3f82-ab30-11e4-89d3-123b93f75cba',
   	name:'Jane',
-  	phone:'+15033171751'
+  	gcm_regid:'APA91bFaUUVwcSYAb7D_EaNhLD6G7zQWmDv2LIfI6u-U6SbIhCbc75bdRIrG-KiYOx06zz2bG8JMBQjwYJcTpW3sMAVldvp4vS7HfVyliEiIzePreDsM2CdAVHNwYMIeLYF7HIAqhr5i9kFyLvf6ZM-iQGcRPfiGnvRbcQ1u8dUYbANAObYiB_A'
     });
 
    // check if Leo and Jane's profiles exist in the database
@@ -121,6 +121,10 @@ db.once('open', function(callback) {
    });
 });
 
+// configure Android push notification service
+var gcm = require('node-gcm');
+
+
 // set up the Express routes to handle incoming requests. 
 var bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -131,8 +135,10 @@ app.post('/', function(req, res){
     console.log("Received new request. user_id = " + req.body.user_id + " consierge_id = " + req.body.concierge_id);
     // TO DO: extract user id and concierge id from the request's body
     var user_id = req.body.user_id;
-    var concierge_id = req.body.concierge_id;    
-    var response;
+    var concierge_id = req.body.concierge_id;
+    var userProfile = null;
+    var conciergeProfile = null;
+    var response = "success";
 
     // Fetch user profile 
     iFashionProfile.findOne({'user.id':user_id}, function (err, profile) { 
@@ -145,8 +151,8 @@ app.post('/', function(req, res){
 	  return console.log("User profile not found!");;
 	} 
 	
-	console.log("User profile found! " + profile);
-	response = "Sharing " + profile.user.name + " fashion profile"; 
+	console.log("User profile found! " + profile); 
+	userProfile = profile;
 
 	// Fetch concierge profile
     	iFashionConcierge.findOne({'uuid':concierge_id}, function (err, profile) {
@@ -160,9 +166,31 @@ app.post('/', function(req, res){
           }
 
           console.log("Concierge profile found! " + profile);
-          response += " with fashion concierge " + profile.name;
-	  res.send(response);
+	  conciergeProfile = profile
+
+	  // Create Android notification to be pushed to Concierge's device
+	  var message = new gcm.Message({
+		name: userProfile.user.name,
+		profile: userProfile.user.profile,
+		style: userProfile.user.style
+		// TODO: Add recent purchases
+	  });
+
+	  // Setup the sender with an API key
+	  var sender = new gcm.Sender("AIzaSyARQuF2rDYHt6Cz6nGmpwAFUoBAiAvIdhY");
+          var registrationIds = [];
+          registrationIds.push(conciergeProfile.gcm_regid);
+          
+	  // Send message to the Concierge's Android device
+	  console.log("Sending GCM message " + message + " to " + conciergeProfile.gcm_regid);
+	  sender.send(message, registrationIds, function (err, result) {
+  		if(err) console.error(err);
+  		else    console.log(result);
+	  });
+
         });
+
+	res.send(response);
     
     }); 
 });
