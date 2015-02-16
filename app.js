@@ -177,9 +177,9 @@ app.post('/', function(req, res){
 		data: {
                    name: userProfile.user.name,
                    profile: userProfile.user.profile,
-                   style: userProfile.user.style
+                   style: userProfile.style,
+                   purchases: userProfile.purchases
 		}
-		// TODO: Add recent purchases
 	  });
 
 	  // Setup the sender with an API key
