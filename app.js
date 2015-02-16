@@ -13,7 +13,7 @@ var db;
 var config = {      
     "USER"    : "",                  
     "PASS"    : "",       
-    "HOST"    : "ec2-54-69-199-235.us-west-2.compute.amazonaws.com",         
+    "HOST"    : "ec2-52-10-33-30.us-west-2.compute.amazonaws.com",         
     "PORT"    : "27017",        
     "DATABASE" : "iFashionDB"     
 };
@@ -94,7 +94,8 @@ db.once('open', function(callback) {
     var Jane = new iFashionConcierge({
   	uuid:'39ed3f82-ab30-11e4-89d3-123b93f75cba',
   	name:'Jane',
-  	gcm_regid:'APA91bFaUUVwcSYAb7D_EaNhLD6G7zQWmDv2LIfI6u-U6SbIhCbc75bdRIrG-KiYOx06zz2bG8JMBQjwYJcTpW3sMAVldvp4vS7HfVyliEiIzePreDsM2CdAVHNwYMIeLYF7HIAqhr5i9kFyLvf6ZM-iQGcRPfiGnvRbcQ1u8dUYbANAObYiB_A'
+  	//gcm_regid:'APA91bFaUUVwcSYAb7D_EaNhLD6G7zQWmDv2LIfI6u-U6SbIhCbc75bdRIrG-KiYOx06zz2bG8JMBQjwYJcTpW3sMAVldvp4vS7HfVyliEiIzePreDsM2CdAVHNwYMIeLYF7HIAqhr5i9kFyLvf6ZM-iQGcRPfiGnvRbcQ1u8dUYbANAObYiB_A'
+  	gcm_regid:'APA91bFFVrsoSZDW0FDl_NrmP4DkaLfFIzqbSnKjUG73IdvhV_cneaC0zxb4x94qDx6YAAw67K1e1_mvgG4s-LPZ1WPmbtuE4fquWOSCUirOAGg5t3aOt2cP4pVof4InzhLG4oSDGYo7ygns7ABWrEoUKqIdXAT-G75h2vWamx3QD_zFcGyYgYw'
     });
 
    // check if Leo and Jane's profiles exist in the database
@@ -170,9 +171,14 @@ app.post('/', function(req, res){
 
 	  // Create Android notification to be pushed to Concierge's device
 	  var message = new gcm.Message({
-		name: userProfile.user.name,
-		profile: userProfile.user.profile,
-		style: userProfile.user.style
+	        collapseKey: 'iFashion',
+		delayWhileIdle: true,
+		timeToLive: 3,
+		data: {
+                   name: userProfile.user.name,
+                   profile: userProfile.user.profile,
+                   style: userProfile.user.style
+		}
 		// TODO: Add recent purchases
 	  });
 
@@ -184,8 +190,8 @@ app.post('/', function(req, res){
 	  // Send message to the Concierge's Android device
 	  console.log("Sending GCM message " + message + " to " + conciergeProfile.gcm_regid);
 	  sender.send(message, registrationIds, function (err, result) {
-  		if(err) console.error(err);
-  		else    console.log(result);
+  		if(err) console.error("gcm send error: " + err);
+  		else    console.log("gcm send result: " + result);
 	  });
 
         });
